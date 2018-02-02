@@ -116,6 +116,38 @@ class CalendarTest < ActiveSupport::TestCase
     assert_equal c.node.updated_at.to_i, c.last_updated_at.to_i
   end
 
+  def test_find_calendar_items_for_chosen_month_with_non_matching_dates_should_return_an_empty_array
+    # accessible calendar item with start_time and end_time not matching any date conditions
+    create_calendar_item(title: 'Dates not matching', start_time: DateTime.now - 1.month, end_time: nil)
+    calendar_items_for_month = @events_calendar.calendar_items.find_all_for_month_of(DateTime.now)
+
+    assert calendar_items_for_month.exclude? 'Dates not matching'
+    # also check if the method has reordered calendar items by start_time
+    assert calendar_items_for_month.each_cons(2).all?{|i, j| i.start_time < j.start_time} == true
+  end
+
+  def test_find_calendar_items_for_chosen_month_with_matching_dates_should_return_a_calendar_item_collection
+    date = DateTime.now.start_of_month
+    # accessible calendar item with start_time and end_time matching date conditions
+    create_calendar_item(title: 'Dates matching', date: date + 80.hours, start_time: date, end_time: date + 90.hours)
+    calendar_items_for_month = @events_calendar.calendar_items.find_all_for_month_of(DateTime.now)
+
+    assert calendar_items_for_month.pluck(:title).include? 'Dates matching'
+    # also check if the method has reordered calendar items by start_time
+    assert calendar_items_for_month.each_cons(2).all?{|i, j| i.start_time < j.start_time} == true
+  end
+
+  def test_find_calendar_items_for_chosen_year_should_return_an_array_of_calendar_item_objects
+    year = DateTime.now.year
+    calendar_items_for_year = @events_calendar.calendar_items.all_for_year(year)
+
+    # one of the calendar items fixtures start_time and end_time do not match the query conditions
+    assert (@events_calendar.calendar_items.size > calendar_items_for_year.size)
+
+    # also check if the method has reordered calendar items by start_time
+    assert calendar_items_for_year.each_cons(2).all?{|i, j| i.start_time < j.start_time} == true
+  end
+
   protected
 
   def create_calendar(options = {})
